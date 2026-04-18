@@ -35,3 +35,19 @@ The nice part of this application is that it will send certain alerts through a 
 ## Architecture
 ![alt text](image-1.png)
 
+#### Data Collection — Node Exporter
+
+Each of your three Proxmox nodes (pve, node2, node3) runs a Node Exporter on port :9100. This is a lightweight agent that exposes raw system metrics — CPU usage, memory, disk I/O, network throughput — as a plain HTTP endpoint in Prometheus format. Nothing is pushed; the data just sits there waiting to be scraped.
+
+#### Metrics Aggregation — Prometheus
+Prometheus (:9090) is the core of the stack. Every 15 seconds it pulls (scrapes) the /metrics endpoint from all three node exporters. It stores the time-series data locally and lets you query it using PromQL. Prometheus also evaluates your alerting rules continuously against the incoming data.
+
+#### Visualization — Grafana
+
+Grafana (:3000) connects to Prometheus as a data source and turns raw PromQL queries into dashboards. You build panels with graphs, gauges, and tables — for example a live CPU heatmap across all three nodes. Grafana itself doesn't store metrics; it always queries Prometheus on demand.
+
+#### Alerting — Alertmanager
+
+When Prometheus detects that a rule is breached (e.g. a node goes down, RAM > 90%), it fires an alert to Alertmanager (:9093). Alertmanager handles the routing, deduplication, and silencing of alerts, then forwards notifications to your configured receivers — in your case Discord and/or Email. This separation means Prometheus focuses on detection, while Alertmanager focuses on delivery.
+
+

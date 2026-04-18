@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'localhost:9093'
+
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'proxmox-nodes'
+    static_configs:
+      - targets:
+          - '192.168.1.249:9100'    # pve
+          - '192.168.1.211:9100'   # node2
+          - '192.168.1.74:9100'   # node3 — REPLACE with actual IP
+        labels:
+          group: 'proxmox'
+
+

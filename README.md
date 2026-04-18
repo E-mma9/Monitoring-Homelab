@@ -1,53 +1,121 @@
-# Monitoring-Homelab
-Monitoring multiple metrics and logs to have a clear overview of the current status a proxmox 3-node cluster. Using Prometheus &amp; Grafana. 
+# Homelab
 
-## who is this guide for?
-This guide is written as a personal project to set up a enterprise level monitoring stack to monitor the health and security of my current 3-node proxmox cluster. I run multiple services on this cluster that need High Avalibility, Load Balancing and proper Monitoring. 
+My self-hosted infrastructure running on a 3-node Proxmox VE cluster. Started as a way to learn more about systems administration and grew into a full monitoring + backup setup that I manage alongside my Cybersecurity & Cloud studies.
 
-### components of monitoring
-In my monitoring stack i will focus on:
-1. Metrics
-certain numbers that describe the current state of my system.
-2. Visualisation
-turning this data and information in to graphs an dashboards so i musn't do much work to understand the data and take action.
-3. Alerting
-automatically sending myself a notification. I am trying to achieve full proactive monitoring, but for the current situation i would not mind reactive monitoring. 
+Everything here — the monitoring pipeline, alerting, dashboards — was configured manually. No helper scripts, no one-click installers for the monitoring stack. I wanted to actually understand what each config line does, not just have something that works.
 
-### The tools
-*Prometheus* 
-This will be the scraper (fetcher) of the metrics within my cluster. Prometheus will send an HTTP request to each target asking their current metrics. It will store these metrics with a timestamp. 
+## The Setup
 
-It pulls the data from the servers.
+Three nodes, all consumer-grade hardware (Dell OptiPlex, HP ProDesk), running Proxmox VE 9 in a cluster with HA enabled.
 
-Promtheus uses PromQL as its Query Language and will use this to Query the metrics. It will keep this data for 180 days. 
+| Node | IP | OS Disk | Extra Storage |
+|------|-----|---------|---------------|
+| pve | 192.168.1.249 | 238GB NVMe | 931GB HDD (ZFS pool) |
+| node2 | 192.168.1.211 | 119GB NVMe | — |
+| node3 | 192.168.1.74 | 119GB SSD | — |
 
-*node_exporter*
-This is a small program that sits in each monitored server and will read system information from the OS (Linux= /proc and /sys) and exposes it to the Prometheus port 9100.
+The ZFS pool on pve handles all backup storage. No shared storage (Ceph would need an extra disk per node), so HA failover copies the disk over — takes a few minutes instead of seconds, but that's fine for a homelab.
 
-*Grafana*
-This application connects data sources and makes it visible as graphs, tables and many other visualization dashboards. All the data comes from Prometheus and will be shown in grafana. Grafana is connected to the prometheus dashboard.
+## What's Running
 
-*Alertmanager*
-This program will handle all the alerts given by Prometheus. Within Prometheus there will be certain thresholds set by the administrator (me) and when this threshold will be hit there will be sent a certain alert.
-The nice part of this application is that it will send certain alerts through a specific channel, like a not so critical alert through mail and a extremely high critical alert through a text message on Telegram.
+| Service | What it does |
+|---------|-------------|
+| **Prometheus + Grafana** | Monitoring — the main project in this repo |
+| **Alertmanager → PagerDuty** | Alerts straight to my phone when something breaks |
+| **blackbox_exporter** | Checks if my services are actually responding |
+| **Pi-hole** | DNS ad blocking for the whole network |
+| **Nginx Proxy Manager** | Reverse proxy + SSL |
+| **Vaultwarden** | Password manager (Bitwarden compatible) |
+| **Paperless-ngx** | Document management with OCR |
+| **UrBackup** | Pulls backups from my Windows machines automatically |
+| **Glance** | Dashboard / start page |
 
+## Monitoring Stack
 
-## Architecture
-![alt text](image-1.png)
+This is the core of the project. Full write-up in [`/monitoring`](./monitoring/).
 
-#### Data Collection — Node Exporter
+The short version:
 
-Each of your three Proxmox nodes (pve, node2, node3) runs a Node Exporter on port :9100. This is a lightweight agent that exposes raw system metrics — CPU usage, memory, disk I/O, network throughput — as a plain HTTP endpoint in Prometheus format. Nothing is pushed; the data just sits there waiting to be scraped.
+```
+node_exporter on each host
+        ↓
+Prometheus (scrapes every 15s)
+        ↓
+   ┌────┴────┐
+Grafana    Alertmanager → PagerDuty → my phone
+```
 
-#### Metrics Aggregation — Prometheus
-Prometheus (:9090) is the core of the stack. Every 15 seconds it pulls (scrapes) the /metrics endpoint from all three node exporters. It stores the time-series data locally and lets you query it using PromQL. Prometheus also evaluates your alerting rules continuously against the incoming data.
+Plus blackbox_exporter for HTTP checks on all services.
 
-#### Visualization — Grafana
+I went with PagerDuty over simpler options (Telegram, ntfy) because it's what most companies actually use, and I wanted the experience of setting up proper incident management — escalation policies, acknowledgements, the works.
 
-Grafana (:3000) connects to Prometheus as a data source and turns raw PromQL queries into dashboards. You build panels with graphs, gauges, and tables — for example a live CPU heatmap across all three nodes. Grafana itself doesn't store metrics; it always queries Prometheus on demand.
+### Alerts I have configured
 
-#### Alerting — Alertmanager
+| Alert | When it fires | Severity |
+|-------|--------------|----------|
+| NodeDown | Can't reach a node for 1 min | Critical |
+| DiskSpaceWarning | Disk > 85% for 5 min | Warning |
+| DiskSpaceCritical | Disk > 95% for 2 min | Critical |
+| HighMemoryUsage | RAM > 90% for 5 min | Warning |
+| HighCPUUsage | CPU > 95% for 10 min | Warning |
+| EndpointDown | Service not responding for 2 min | Critical |
+| SlowResponse | Response time > 5s for 5 min | Warning |
 
-When Prometheus detects that a rule is breached (e.g. a node goes down, RAM > 90%), it fires an alert to Alertmanager (:9093). Alertmanager handles the routing, deduplication, and silencing of alerts, then forwards notifications to your configured receivers — in your case Discord and/or Email. This separation means Prometheus focuses on detection, while Alertmanager focuses on delivery.
+## Screenshots
 
+### Grafana — Cluster Overview (custom dashboard)
+![Cluster Overview](./Screenshots/grafana-cluster-overview.png)
 
+### Prometheus — All targets UP
+![Targets](./Screenshots/prometheus-targets.png)
+
+### PagerDuty — Incident from test alert
+![PagerDuty](./Screenshots/pagerduty-incident.png)
+
+## Architecture Diagram
+
+```
+                  ┌───────────────┼───────────────┐
+                  │               │               │
+           ┌──────┴──────┐ ┌─────┴──────┐ ┌──────┴──────┐
+           │    pve       │ │   node2    │ │   node3     │
+           │ .249         │ │ .211       │ │ .74         │
+           │              │ │            │ │             │
+           │ Paperless    │ │ Pi-hole    │ │             │
+           │ UrBackup     │ │ Nginx PM  │ │             │
+           │              │ │ Glance    │ │             │
+           │ ZFS Pool     │ │ Vaultwarden│ │             │
+           │ (931GB)      │ │ Monitoring│ │             │
+           └──────────────┘ └───────────┘ └─────────────┘
+```
+
+All nodes connected via Tailscale for remote access. No ports exposed to the internet.
+
+## Repo Structure
+
+```
+├── docs/
+│   ├── architecture.md         Detailed infra documentation
+│   └── Infrastructure-setup    Setup notes
+├── monitoring/
+│   ├── prometheus/             Scrape config + alert rules
+│   ├── alertmanager/           PagerDuty routing config
+│   ├── blackbox_exporter/      HTTP/TCP/ICMP probe definitions
+│   ├── grafana/dashboards/     Exported dashboard JSON
+│   ├── node_exporter/          Systemd service for hosts
+│   └── systemd/                Service files for all components
+├── Screenshots/                Dashboard + alert screenshots
+└── .gitignore
+```
+
+## What I Learned
+
+Setting this up from scratch taught me more than any tutorial could:
+
+- How Prometheus actually works under the hood (pull model, TSDB, PromQL)
+- Writing PromQL queries that make sense, not just copy-pasting from Stack Overflow
+- Why Alertmanager exists separately from Prometheus (grouping, routing, silencing)
+- How companies handle incidents with PagerDuty (on-call, escalation, acknowledgement)
+- The difference between "it works" and "I understand why it works"
+
+The monitoring stack took the longest to get right — not because it's hard to install, but because understanding what each metric means, choosing the right thresholds, and building dashboards that actually help you takes time.

@@ -4,7 +4,6 @@
 #       groups related alerts → waits briefly for more →
 #       sends notification via configured receiver
 #
-# Docs: https://prometheus.io/docs/alerting/latest/configuration/
 
 global:
   # If an alert stops firing, Alertmanager waits this long
@@ -34,17 +33,6 @@ route:
 
   # If the same alert is still firing after 2 hours, remind me
   repeat_interval: 2h
-
-  # You can add sub-routes here to send different severities
-  # to different receivers. 
-  #
-  # routes:
-  #   - match:
-  #       severity: critical
-  #     receiver: 'ntfy'         # Critical → phone notification
-  #   - match:
-  #       severity: warning
-  #     receiver: 'discord'      # Warning → Discord (less urgent)
 
 # Where alerts actually get sent
 receivers:

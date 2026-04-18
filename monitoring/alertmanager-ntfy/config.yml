@@ -1,0 +1,38 @@
+# alertmanager-ntfy config
+#
+# This small service sits between Alertmanager and ntfy.
+# Problem: Alertmanager sends alerts as JSON, but ntfy expects
+# simple messages. This bridge translates between the two formats.
+#
+# Flow: Alertmanager → POST JSON to :8086/hook → bridge formats it →
+#       sends to ntfy server → push notification on your phone
+
+http:
+  # Port where this bridge listens for Alertmanager webhooks
+  addr: ":8086"
+
+ntfy:
+  # URL of your ntfy server
+  url: "http://192.168.1.179"    # REPLACE with actual ntfy IP
+
+  # ntfy topic - like a channel name
+  # Subscribe to this in the ntfy app on your phone
+  topic: "homelab-alerts"
+
+  # Map alert severity labels to ntfy priority levels
+  # This way critical alerts make your phone buzz urgently,
+  # while warnings are quieter
+  priority:
+    critical: "urgent"     # Overrides Do Not Disturb on most phones
+    warning: "high"        # Normal notification sound
+    info: "default"        # Silent notification
+
+  # How the notification looks on your phone
+  templates:
+    # Title shows a red or green dot + the alert name
+    title: '{{ if eq .Status "firing" }}🔴{{ else }}🟢{{ end }} {{ .Labels.alertname }}'
+    # Body has the details
+    body: |
+      Status: {{ .Status | toUpper }}
+      Instance: {{ .Labels.instance }}
+      {{ .Annotations.description }}

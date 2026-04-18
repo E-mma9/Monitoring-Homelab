@@ -1,0 +1,39 @@
+# prometheus.service - Runs inside the monitoring CT
+#
+# Prometheus scrapes metrics from all targets defined in prometheus.yml,
+# stores them in its time-series database, and evaluates alert rules
+#
+# Install location: /opt/prometheus/prometheus
+# Config: /etc/prometheus/prometheus.yml
+# Data: /opt/prometheus/data/
+# Install this service: cp prometheus.service /etc/systemd/system/
+# Then: systemctl daemon-reload && systemctl enable --now prometheus
+
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/
+
+# Start after networking - needs to reach node_exporters on other hosts
+After=network.target
+
+[Service]
+Type=simple
+
+ExecStart=/opt/prometheus/prometheus \
+  # Where to find the scrape config and alert rules
+  --config.file=/etc/prometheus/prometheus.yml \
+  # Where to store the time-series database on disk
+  # This will grow over time - budget ~1-2GB per month for a small homelab
+  --storage.tsdb.path=/opt/prometheus/data \
+  # Automatically delete data older than 90 days
+  # Adjust based on your disk space - 30d for tight storage, 1y if you have room
+  --storage.tsdb.retention.time=90d \
+  # Allows reloading config without restarting by sending POST to /-/reload
+  # Very handy when tweaking scrape targets or alert rules
+  --web.enable-lifecycle
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

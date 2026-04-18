@@ -1,0 +1,26 @@
+# blackbox_exporter.service - Runs inside the monitoring CT
+#
+# blackbox_exporter performs active checks (HTTP, TCP, ICMP) against
+# your services when Prometheus asks it to. Think of it as a
+# probe station that tests "can I reach service X?"
+#
+# Install location: /opt/blackbox_exporter/blackbox_exporter
+# Config: /opt/blackbox_exporter/blackbox.yml
+# Listens on: port 9115
+
+[Unit]
+Description=Blackbox Exporter
+Documentation=https://github.com/prometheus/blackbox_exporter
+After=network.target
+
+[Service]
+Type=simple
+
+ExecStart=/opt/blackbox_exporter/blackbox_exporter \
+  --config.file=/opt/blackbox_exporter/blackbox.yml
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

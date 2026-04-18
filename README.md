@@ -99,10 +99,13 @@ All nodes connected via Tailscale for remote access. No ports exposed to the int
 
 Setting this up from scratch taught me more than any tutorial could:
 
-- How Prometheus actually works under the hood (pull model, TSDB, PromQL)
-- Writing PromQL queries that make sense, not just copy-pasting from Stack Overflow
+- How Prometheus actually works under the hood 
 - Why Alertmanager exists separately from Prometheus (grouping, routing, silencing)
 - How companies handle incidents with PagerDuty (on-call, escalation, acknowledgement)
-- The difference between "it works" and "I understand why it works"
+
+## End result
+When a node/service is down i will get a text message from PagerDuty. If i do not acknowledge this text message i will recieve a call with the needed information. 
+
+
 
 The monitoring stack took the longest to get right — not because it's hard to install, but because understanding what each metric means, choosing the right thresholds, and building dashboards that actually help you takes time.

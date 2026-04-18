@@ -1,0 +1,59 @@
+# alertmanager.yml - Controls how alerts get routed and delivered
+#
+# Prometheus fires alert → Alertmanager receives it →
+#       groups related alerts → waits briefly for more →
+#       sends notification via configured receiver
+#
+# Docs: https://prometheus.io/docs/alerting/latest/configuration/
+
+global:
+  # If an alert stops firing, Alertmanager waits this long
+  # before marking it as "resolved" and sending the all-clear
+  # 5 minutes prevents flapping (resolved → firing → resolved → firing)
+  resolve_timeout: 5m
+
+# Routing tree - decides which alerts go where
+route:
+  # Default receiver - everything goes here unless a different channel catches it
+  receiver: 'ntfy'
+
+  # Group alerts with the same name together
+  # listing all 3, instead of 3 separate notifications
+  # This will make sure I get ONE alert instead of three
+  group_by: ['alertname']
+
+  # After the first alert in a group fires, wait 30 seconds
+  # to see if more alerts from the same group come in
+  # 10 seconds apart get merged into one message
+  group_wait: 30s
+
+  # Once a group notification is sent, wait at least 5 minutes
+  # before sending another one for the same group
+  # Prevents spam when alerts keep firing and resolving
+  group_interval: 5m
+
+  # If the same alert is still firing after 2 hours, remind me
+  repeat_interval: 2h
+
+  # You can add sub-routes here to send different severities
+  # to different receivers. 
+  #
+  # routes:
+  #   - match:
+  #       severity: critical
+  #     receiver: 'ntfy'         # Critical → phone notification
+  #   - match:
+  #       severity: warning
+  #     receiver: 'discord'      # Warning → Discord (less urgent)
+
+# Where alerts actually get sent
+receivers:
+  # ntfy via the alertmanager-ntfy bridge
+  # The bridge translates Alertmanager's JSON format into
+  # ntfy-compatible messages with proper titles and priorities
+  - name: 'ntfy'
+    webhook_configs:
+      - url: 'http://localhost:8086/hook'    # alertmanager-ntfy bridge
+        send_resolved: true                  # Also notify when problems are fixed
+
+

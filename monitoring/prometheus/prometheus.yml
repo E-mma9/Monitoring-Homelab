@@ -1,28 +1,88 @@
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 15s # fast enough to get issues
+  evaluation_interval: 15s # how often prometheus checks alert-rules against collected data
 
+
+# Tell Prometheus where to send alerts when a rule fires
+# Alertmanager runs on the same machine so localhost works
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
             - 'localhost:9093'
 
+# Load alert rules from this file
+# Prometheus checks these every evaluation_interval (15s)
+# and fires alerts to Alertmanager when conditions are met
 rule_files:
   - "/etc/prometheus/alert_rules.yml"
 
+# defines what will beb scraped
 scrape_configs:
+# Here prometheus will check its own metric. 
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
+  # All three Proxmox hosts running node_exporter on port 9100
+  # node_exporter reads CPU, RAM, disk, network stats from the kernel
   - job_name: 'proxmox-nodes'
     static_configs:
       - targets:
           - '192.168.1.249:9100'    # pve
           - '192.168.1.211:9100'   # node2
-          - '192.168.1.74:9100'   # node3 — REPLACE with actual IP
+          - '192.168.1.74:9100'   # node3 
         labels:
           group: 'proxmox'
 
 
+  # HTTP endpoint checks via blackbox_exporter
+  # Makes actual HTTP requests and verifies the response is valid
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]    # Defined in blackbox.yml - expects 200/301/302
+    static_configs:
+      - targets:
+          # Each URL gets checked every scrape_interval (15s)
+          - 'http://192.168.1.118:8080'    # Vaultwarden
+          - 'http://192.168.1.30:81'       # Nginx Proxy Manager
+          - 'http://192.168.1.223/admin'   # Pi-hole
+          - 'http://localhost:3000'        # Grafana (zelfde CT)
+          - 'http://192.168.1.250:8000'    # Paperless-ngx
+          - 'http://192.168.1.96:8080'     # Glance
+    # Relabeling - this looks confusing but is actually straightforward:
+    # Normally Prometheus scrapes the target URL directly. But with
+    # blackbox_exporter we need to say "hey blackbox, check THIS url for me"
+    # So we rewrite the request:
+    #   1. Take the original URL and pass it as ?target= parameter
+    #   2. Keep the URL as the "instance" label (shows up in dashboards)
+    #   3. Actually send the scrape request to blackbox_exporter instead
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115
+
+  # ICMP ping checks 
+  # Catches network issues that HTTP checks might miss
+  - job_name: 'blackbox-ping'
+    metrics_path: /probe
+    params:
+      module: [icmp_ping]
+    static_configs:
+      - targets:
+          - 192.168.1.249 #pve
+          - 192.168.1.211 #node2
+          - 192.168.1.74 #node3
+          - '<NODE3-IP>'
+    # Same relabeling trick - route pings through blackbox_exporter
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115

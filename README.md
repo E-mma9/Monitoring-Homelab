@@ -72,6 +72,15 @@ I went with PagerDuty over simpler options (Telegram, ntfy) because it's what mo
 ### PagerDuty — Incident from test alert
 ![PagerDuty](./Screenshots/pagerduty-incident.png)
 
+### PagerDuty — Service Directory
+![PagerDuty Service Directory](./Screenshots/Screenshot%202026-04-18%20at%2023-04-28%20Service%20Directory%20-%20PagerDuty.png)
+
+### Alertmanager — Overview
+![Alertmanager](./Screenshots/Screenshot%202026-04-18%20at%2023-01-58%20Alertmanager.png)
+
+### Blackbox Exporter — Probe results
+![Blackbox Exporter](./Screenshots/Screenshot%202026-04-18%20at%2023-02-41%20Blackbox%20Exporter.png)
+
 ## Architecture Diagram
 
 
@@ -82,8 +91,8 @@ All nodes connected via Tailscale for remote access. No ports exposed to the int
 
 ```
 ├── docs/
-│   ├── architecture.md         Detailed infra documentation
-│   └── Infrastructure-setup    Setup notes
+│   └── architecture.md         Detailed infra documentation
+├── Infrastructure-setup/        Setup notes
 ├── monitoring/
 │   ├── prometheus/             Scrape config + alert rules
 │   ├── alertmanager/           PagerDuty routing config

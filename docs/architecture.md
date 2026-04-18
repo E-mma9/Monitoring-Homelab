@@ -14,24 +14,8 @@ The homelab runs on a 3-node Proxmox VE cluster providing high availability and 
 |------|-----|-----|---------|---------------|------|
 | pve | Intel i5 | 16GB | 238GB NVMe | 931GB HDD (ZFS) | Primary storage, backup |
 | node2 | Intel i5 | 8GB | 119GB NVMe | — | Services |
-| node3 | — | — | 119GB SSD | — | Workload distribution |
+| node3 | Intel i5 | 8GB | 119GB SSD | — | Workload distribution |
 
-### Storage Architecture
-
-```
-pve:
-├── nvme0n1 (238GB) → Proxmox OS + local-lvm (CT/VM disks)
-└── sda (931GB) → ZFS pool
-    ├── pool/urbackup     → UrBackup endpoint data
-    ├── pool/backups      → General backup storage
-    └── pool/kopia-repo   → Kopia backup repository
-
-node2:
-└── nvme0n1 (119GB) → Proxmox OS + local-lvm (CT/VM disks)
-
-node3:
-└── sda (119GB) → Proxmox OS + local-lvm (CT/VM disks)
-```
 
 ### Networking
 
@@ -44,7 +28,6 @@ Remote access is handled via Tailscale mesh VPN — no ports are exposed to the 
 All critical services are configured in Proxmox HA with:
 - Automatic restart on the same node (up to 3 attempts)
 - Automatic migration to another node if restart fails
-- Fencing via corosync quorum (3-node cluster provides reliable fencing)
 
 **Limitation:** All storage is local (no Ceph or shared NFS). This means HA failover requires copying the container disk to the target node, which takes minutes rather than seconds. This is acceptable for homelab use.
 
@@ -52,23 +35,14 @@ All critical services are configured in Proxmox HA with:
 
 ```
 Data flow:
-node_exporter (port 9100) → Prometheus (scrapes every 15s)
-Uptime Kuma (port 3001)   → Prometheus (scrapes every 15s)
-                              ↓
-                           Prometheus (stores, evaluates rules)
-                              ↓                    ↓
-                           Grafana              Alertmanager
-                           (dashboards)         (notifications)
-                                                   ↓
-                                                Discord
+node_exporter (port 9100)      → Prometheus (scrapes every 15s)
+blackbox_exporter (port 9115)  → Prometheus (scrapes every 15s)
+                                    ↓
+                                 Prometheus (stores, evaluates rules)
+                                    ↓                    ↓
+                                 Grafana              Alertmanager
+                                 (dashboards)         (notifications)
+                                                         ↓
+                                                      PagerDuty
 ```
 
-### Backup Architecture
-
-```
-Data flow:
-Windows endpoints → UrBackup agent → UrBackup server (CT 101)
-                                         ↓
-                                    ZFS pool/urbackup (pve)
-                                    (~900GB available)
-```

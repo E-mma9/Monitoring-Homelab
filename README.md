@@ -88,7 +88,7 @@ I went with PagerDuty over simpler options (Telegram, ntfy) because it's what mo
            │ (931GB)      │ │ Monitoring│ │             │
            └──────────────┘ └───────────┘ └─────────────┘
 ```
-
+![Proxmox]./Schematics/ProxmoxCluster.png
 All nodes connected via Tailscale for remote access. No ports exposed to the internet.
 
 ## Repo Structure

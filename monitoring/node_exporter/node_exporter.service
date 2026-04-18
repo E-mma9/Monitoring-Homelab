@@ -1,32 +1,17 @@
-# node_exporter.service - Runs on each Proxmox host (not in the monitoring CT)
-#
-# node_exporter reads system stats from the Linux kernel (/proc, /sys)
-# and exposes them as Prometheus metrics on port 9100
-#
-# Install location: /usr/local/bin/node_exporter
-# Install this service: cp node_exporter.service /etc/systemd/system/
-# Then: systemctl daemon-reload && systemctl enable --now node_exporter
+# Runs on each Proxmox host (pve, node2, node3) — NOT in the monitoring CT
+# Reads system stats from /proc and /sys, exposes them on port 9100
+# Install: cp to /etc/systemd/system/, then systemctl daemon-reload && systemctl enable --now node_exporter
 
 [Unit]
 Description=Node Exporter
 Documentation=https://github.com/prometheus/node_exporter
-
-# Only start after networking is up - Prometheus needs to reach us
 After=network.target
 
 [Service]
 Type=simple
-
-# The binary itself - no config file needed, sensible defaults out of the box
-# Listens on :9100 by default
 ExecStart=/usr/local/bin/node_exporter
-
-# If it crashes, restart it automatically
 Restart=always
-
-# Wait 5 seconds before restarting to avoid rapid crash loops
 RestartSec=5
 
 [Install]
-# Start on every boot when the system reaches multi-user mode (normal operation)
 WantedBy=multi-user.target

@@ -1,24 +1,23 @@
-# alert_rules.yml: Defines when Prometheus should fire alerts
+# alert_rules.yml - Defines when Prometheus should fire alerts
 #
-# How alert rules work:
-#   1. Prometheus evaluates each "expr" every 15 seconds.
-#   2. If the expression returns results, the alert enters "pending" state.
-#   3. If it stays true for the "for" duration, the alert starts "firing".
-#   4. Firing alerts get sent to Alertmanager.
-#   5. When the expression stops returning results, the alert "resolves".
+# How it works:
+#   1. Prometheus evaluates each "expr" every 15 seconds
+#   2. If the expression returns results → alert enters "Pending"
+#   3. If it stays true for the "for" duration → alert starts "Firing"
+#   4. Firing alerts get sent to Alertmanager → PagerDuty → your phone
+#   5. When the expression stops returning results → alert "Resolves"
 #
 # The "for" field prevents false alarms from brief spikes.
-# Without it even a 1 second spike will send a alert.
+# Without it, a 1-second CPU spike would trigger an alert.
 
 groups:
-  # Infrastructure alerts - problems with the physical/virtual hosts
+  # Infrastructure alerts — problems with the Proxmox hosts themselves
   - name: node_alerts
     rules:
 
       # Fires when Prometheus can't reach a node's node_exporter
-      # Most likely causes: node is down, network issue, or node_exporter crashed
-      # "for: 1m" means it waits 60 seconds before alerting this prevents
-      # false alarms from brief network blips during reboots etc.
+      # Causes: node crashed, network issue, or node_exporter stopped
+      # 1 minute wait prevents false alarms from brief network blips
       - alert: NodeDown
         expr: up{job="proxmox-nodes"} == 0
         for: 1m
@@ -29,9 +28,8 @@ groups:
           description: "{{ $labels.instance }} has been unreachable for more than 1 minute."
 
       # Disk filling up is one of the most common causes of outages
-      # At 85% you still have time to clean up or expand storage
-      # "for: 5m" avoids alerting during temporary spikes (like a large file copy
-      # that gets cleaned up right after)
+      # At 85% there's still time to clean up or expand storage
+      # 5 min wait filters out temporary spikes from large file copies
       - alert: DiskSpaceWarning
         expr: 100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100) > 85
         for: 5m
@@ -41,9 +39,9 @@ groups:
           summary: "Disk almost full on {{ $labels.instance }}"
           description: "Root partition on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% full."
 
-      # At 95% things start breaking - logs can't write, databases crash,
-      # containers refuse to start. This needs immediate attention.
-      # Shorter "for" (2m) because at this level immediate action is needed.
+      # At 95% things break — logs can't write, databases crash,
+      # containers refuse to start. Needs immediate action.
+      # Shorter wait (2 min) because every minute counts at this level
       - alert: DiskSpaceCritical
         expr: 100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100) > 95
         for: 2m
@@ -53,10 +51,9 @@ groups:
           summary: "Disk CRITICALLY full on {{ $labels.instance }}"
           description: "Root partition on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% full. Action required!"
 
-      # High memory usage could mean a memory leak in one of your services
-      # or just that you're running too much on one node
-      # 90% threshold with 5 minute window filters out temporary spikes
-      # from things like backups or updates
+      # High memory usage could mean a memory leak or overloaded node
+      # 90% threshold with 5 min window filters out temporary spikes
+      # from backups, updates, or container starts
       - alert: HighMemoryUsage
         expr: 100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 90
         for: 5m
@@ -67,8 +64,7 @@ groups:
           description: "{{ $labels.instance }} is using {{ $value | printf \"%.1f\" }}% of RAM."
 
       # Sustained high CPU usually means something is stuck in a loop
-      # or your workload has outgrown the hardware
-      # 10 minute window is long because short CPU spikes are totally normal
+      # 10 min window is long because short CPU spikes are normal
       # (updates, backups, container starts all cause brief 100% spikes)
       - alert: HighCPUUsage
         expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
@@ -79,14 +75,13 @@ groups:
           summary: "High CPU usage on {{ $labels.instance }}"
           description: "{{ $labels.instance }} CPU is at {{ $value | printf \"%.1f\" }}% for more than 10 minutes."
 
-  # Service availability alerts - from blackbox_exporter HTTP/ping checks
+  # Service alerts — from blackbox_exporter HTTP and ping checks
   - name: blackbox_alerts
     rules:
 
-      # probe_success is 1 when the check passes, 0 when it fails
-      # This catches any service that stops responding to HTTP requests
-      # 2 minute wait prevents alerting during container restarts or
-      # brief maintenance windows
+      # probe_success is 1 when check passes, 0 when it fails
+      # Catches any service that stops responding to HTTP requests
+      # 2 min wait prevents alerting during container restarts
       - alert: EndpointDown
         expr: probe_success == 0
         for: 2m
@@ -98,7 +93,7 @@ groups:
 
       # Slow responses often indicate a problem before a full outage
       # Could be high load, database issues, or network congestion
-      # 5 seconds is generous - most local services should respond in <1s
+      # 5 seconds is generous — most local services respond in <1s
       - alert: SlowResponse
         expr: probe_duration_seconds > 5
         for: 5m
@@ -107,5 +102,3 @@ groups:
         annotations:
           summary: "Slow response from {{ $labels.instance }}"
           description: "{{ $labels.instance }} is responding in {{ $value | printf \"%.1f\" }} seconds."
-
-

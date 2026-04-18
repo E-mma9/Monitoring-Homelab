@@ -1,47 +1,53 @@
 # alertmanager.yml - Controls how alerts get routed and delivered
 #
-# Prometheus fires alert → Alertmanager receives it →
+# Flow: Prometheus fires alert → Alertmanager receives it →
 #       groups related alerts → waits briefly for more →
-#       sends notification via configured receiver
+#       sends to PagerDuty → phone/SMS/email notification
 #
+# Docs: https://prometheus.io/docs/alerting/latest/configuration/
 
 global:
-  # If an alert stops firing, Alertmanager waits this long
-  # before marking it as "resolved" and sending the all-clear
-  # 5 minutes prevents flapping (resolved → firing → resolved → firing)
-  resolve_timeout: 5m
+  # After an alert stops firing, wait this long before sending "resolved"
+  # Prevents flapping (firing → resolved → firing → resolved = notification spam)
+  resolve_timeout: 1m
 
-# Routing tree - decides which alerts go where
+  # PagerDuty Events API endpoint — don't change this
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+# Routing tree — decides which alerts go where
 route:
-  # Default receiver - everything goes here unless a different channel catches it
-  receiver: 'ntfy'
+  # Default receiver — all alerts go to PagerDuty
+  receiver: 'pagerduty'
 
   # Group alerts with the same name together
-  # listing all 3, instead of 3 separate notifications
-  # This will make sure I get ONE alert instead of three
+  # If all 3 nodes trigger DiskSpaceWarning at once, you get ONE incident
+  # listing all 3, not 3 separate incidents
   group_by: ['alertname']
 
-  # After the first alert in a group fires, wait 30 seconds
-  # to see if more alerts from the same group come in
-  # 10 seconds apart get merged into one message
+  # After the first alert in a group, wait 30 seconds to see if
+  # more alerts from the same group come in before sending
   group_wait: 30s
 
-  # Once a group notification is sent, wait at least 5 minutes
-  # before sending another one for the same group
-  # Prevents spam when alerts keep firing and resolving
+  # Once a grouped notification is sent, wait 5 minutes before
+  # sending another for the same group
   group_interval: 5m
 
-  # If the same alert is still firing after 2 hours, remind me
-  repeat_interval: 2h
+  # If the same alert is still firing after 4 hours, remind again
+  repeat_interval: 4h
 
-# Where alerts actually get sent
+# Where alerts get delivered
 receivers:
-  # ntfy via the alertmanager-ntfy bridge
-  # The bridge translates Alertmanager's JSON format into
-  # ntfy-compatible messages with proper titles and priorities
-  - name: 'ntfy'
-    webhook_configs:
-      - url: 'http://localhost:8086/hook'    # alertmanager-ntfy bridge
-        send_resolved: true                  # Also notify when problems are fixed
+  - name: 'pagerduty'
+    pagerduty_configs:
+        # Integration key from PagerDuty service configuration
+        # Get this from: PagerDuty → Services → Your Service → Integrations
+      - routing_key: 'YOUR_PAGERDUTY_INTEGRATION_KEY'
 
+        # Map alert severity to PagerDuty severity levels
+        severity: '{{ if eq .CommonLabels.severity "critical" }}critical{{ else }}warning{{ end }}'
 
+        # Alert description shown in the PagerDuty incident
+        description: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+        # Also send a notification when the problem is fixed
+        send_resolved: true

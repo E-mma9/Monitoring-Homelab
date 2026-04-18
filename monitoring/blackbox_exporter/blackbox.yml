@@ -1,30 +1,36 @@
-# blackbox.yml - Defines probe modules for blackbox_exporter
+# blackbox.yml - Probe modules for blackbox_exporter
 #
-# Each module is a type of check that Prometheus can request
-# via the /probe endpoint. The module name is passed as a parameter
-# in the Prometheus scrape config.
+# Each module defines a type of check that Prometheus can request.
+# The module name is referenced in prometheus.yml under scrape_configs.
 #
-
+# Docs: https://github.com/prometheus/blackbox_exporter
 
 modules:
-  # HTTP check - verifies a URL returns a valid response
-  # Used for checking if web services (Grafana, Vaultwarden, etc.) are up
+  # HTTP check — makes a real HTTP request and validates the response
+  # Used for monitoring web services (Grafana, Vaultwarden, Pi-hole, etc.)
   http_2xx:
     prober: http
-    timeout: 5s    # Give up after 8 seconds - anything slower is broken
+    timeout: 5s    # Give up after 5 seconds — anything slower is broken
     http:
-      # Accept both HTTP/1.1 and HTTP/2
       valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
-      # Consider these status codes as "success"
-      # 200 = OK, 301/302 = redirect (still means the server is alive)
+      # These status codes count as "success"
+      # 200 = OK, 301/302 = redirect (server is alive, just redirecting)
       valid_status_codes: [200, 301, 302]
-      # Follow redirects - some services redirect /admin to /admin/login etc.
       follow_redirects: true
+      # Accept any SSL certificate, even self-signed or mismatched
+      # Necessary because internal services use certs issued for
+      # Tailscale domains, not LAN IPs
+      tls_config:
+        insecure_skip_verify: true
 
-  # TCP check - just tries to open a TCP connection on a port
-  # Useful for non-HTTP services like databases or custom apps
+  # TCP check — tries to open a TCP connection on a port
+  # Useful for non-HTTP services like databases
   tcp_connect:
     prober: tcp
     timeout: 5s
 
- 
+  # ICMP ping — checks if a host is reachable at network level
+  # Catches network issues even when services on the host are down
+  icmp_ping:
+    prober: icmp
+    timeout: 5s

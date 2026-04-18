@@ -1,29 +1,17 @@
-# alertmanager.service - Runs inside the monitoring CT alongside Prometheus
-#
-# Alertmanager receives alerts from Prometheus, groups them,
-# and sends notifications to the configured receiver (ntfy/Discord/email)
-#
-# Install location: /opt/alertmanager/alertmanager
-# Config: /opt/alertmanager/alertmanager.yml
-# Install this service: cp alertmanager.service /etc/systemd/system/
-# Then: systemctl daemon-reload && systemctl enable --now alertmanager
+# Runs in the monitoring CT (110)
+# Receives alerts from Prometheus, groups them, sends to PagerDuty
+# Web UI: http://<CT-IP>:9093
 
 [Unit]
 Description=Alertmanager
 Documentation=https://prometheus.io/docs/alerting/alertmanager/
-
 After=network.target
 
 [Service]
 Type=simple
-
 ExecStart=/opt/alertmanager/alertmanager \
-  # Alert routing and receiver config
   --config.file=/opt/alertmanager/alertmanager.yml \
-  # Alertmanager stores silence and notification state here
-  # So it remembers which alerts it already sent after a restart
   --storage.path=/opt/alertmanager/data
-
 Restart=always
 RestartSec=5
 

@@ -6,11 +6,11 @@
 # Docs: https://github.com/prometheus/blackbox_exporter
 
 modules:
-  # HTTP check — makes a real HTTP request and validates the response
-  # Used for monitoring web services (Grafana, Vaultwarden, Pi-hole, etc.)
+  # HTTP check — makes a HTTP request and validates the response
+  # Used for monitoringservices (Grafana, Vaultwarden, Pi-hole, etc.)
   http_2xx:
     prober: http
-    timeout: 5s    # Give up after 5 seconds — anything slower is broken
+    timeout: 5s    # Give up after 5 seconds 
     http:
       valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
       # These status codes count as "success"

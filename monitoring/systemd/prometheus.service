@@ -1,5 +1,5 @@
-# Runs in the monitoring CT (110)
-# Scrapes all targets, stores metrics for 90 days, evaluates alert rules
+# Runs in the monitoring LXC Container
+# Scrapes all targets, stores metrics for 90 days
 # Web UI: http://<CT-IP>:9090
 
 [Unit]

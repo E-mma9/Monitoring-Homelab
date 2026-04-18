@@ -1,4 +1,4 @@
-# Runs in the monitoring CT (110)
+# Runs in the monitoring LXC Container
 # Performs HTTP, TCP, and ICMP checks when Prometheus asks it to
 # Web UI: http://<CT-IP>:9115
 

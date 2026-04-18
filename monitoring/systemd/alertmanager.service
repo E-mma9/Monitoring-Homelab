@@ -1,4 +1,4 @@
-# Runs in the monitoring CT (110)
+# Runs in the monitoring LXC Container
 # Receives alerts from Prometheus, groups them, sends to PagerDuty
 # Web UI: http://<CT-IP>:9093
 

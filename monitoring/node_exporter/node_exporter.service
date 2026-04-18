@@ -1,4 +1,4 @@
-# Runs on each Proxmox host (pve, node2, node3) — NOT in the monitoring CT
+# Runs on each Proxmox host (pve, node2, node3) - not in a container
 # Reads system stats from /proc and /sys, exposes them on port 9100
 # Install: cp to /etc/systemd/system/, then systemctl daemon-reload && systemctl enable --now node_exporter
 

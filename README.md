@@ -74,21 +74,8 @@ I went with PagerDuty over simpler options (Telegram, ntfy) because it's what mo
 
 ## Architecture Diagram
 
-```
-                  ┌───────────────┼───────────────┐
-                  │               │               │
-           ┌──────┴──────┐ ┌─────┴──────┐ ┌──────┴──────┐
-           │    pve       │ │   node2    │ │   node3     │
-           │ .249         │ │ .211       │ │ .74         │
-           │              │ │            │ │             │
-           │ Paperless    │ │ Pi-hole    │ │             │
-           │ UrBackup     │ │ Nginx PM  │ │             │
-           │              │ │ Glance    │ │             │
-           │ ZFS Pool     │ │ Vaultwarden│ │             │
-           │ (931GB)      │ │ Monitoring│ │             │
-           └──────────────┘ └───────────┘ └─────────────┘
-```
-![Proxmox]./Schematics/ProxmoxCluster.png
+
+![Proxmox Cluster](./Schematics/ProxmoxCluster.png)
 All nodes connected via Tailscale for remote access. No ports exposed to the internet.
 
 ## Repo Structure

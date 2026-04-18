@@ -1,6 +1,6 @@
 # Monitoring
 
-The monitoring setup for my 3-node Proxmox cluster. Everything here was installed and configured manually — no helper scripts, no Docker, no pre-built stacks. Each config file in this repo is the actual config running on my infrastructure.
+The monitoring setup for my 3-node Proxmox cluster. Each config file in this repo is the actual config running on my infrastructure.
 
 ## What's in this stack
 
@@ -12,7 +12,7 @@ The monitoring setup for my 3-node Proxmox cluster. Everything here was installe
 | blackbox_exporter | 0.25.0 | Probes my services with HTTP requests to check if they're alive |
 | node_exporter | 1.9.1 | Runs on each Proxmox host, exposes CPU/RAM/disk/network metrics |
 
-Everything except node_exporter runs inside a single LXC container (CT 110, Debian 13, 2GB RAM, 2 cores). node_exporter runs directly on each Proxmox host since it needs access to the host's kernel stats.
+Everything except node_exporter runs inside a single LXC container (CT 110, Debian 13, 2GB RAM, 2 cores). node_exporter runs directly on each Proxmox host since it needs access to the host's kernel data.
 
 ## How it all connects
 
@@ -44,7 +44,7 @@ Seven rules, split into two categories.
 - `EndpointDown` — blackbox HTTP check fails, service is unreachable (fires after 2 min)
 - `SlowResponse` — service responds but takes more than 5 seconds (fires after 5 min, usually a warning sign before a full outage)
 
-Every `for` duration is intentional. Without it, a 2-second network blip would wake me up at 3 AM for nothing.
+Every duration is chosen with intent. Without this i would be getting messages even if there is a one second CPU spike.
 
 ## The alerting pipeline
 
@@ -59,11 +59,11 @@ When something breaks, this is what happens:
 
 From crash to phone buzz: about 3 minutes for most alerts. That's the `for` duration + Alertmanager grouping window.
 
-I chose PagerDuty over Telegram or Discord because it's what companies actually use. The free tier is enough for a homelab (up to 5 users).
+I chose PagerDuty over Telegram or Discord because it's what companies actually use. The free tier is enough for a homelab.
 
-## PromQL queries I wrote
+## PromQL queries 
 
-These are in the custom Grafana dashboard. Writing these by hand instead of importing a template was the whole point — I wanted to understand what each function does.
+These are in the custom Grafana dashboard. 
 
 **CPU usage as a percentage:**
 ```promql
@@ -115,7 +115,7 @@ SSL verification is disabled in the blackbox config because Vaultwarden uses a T
 ## Dashboards
 
 **Custom — Cluster Overview**
-Built from scratch. CPU, RAM, disk as gauges per node. Network traffic over time. Node up/down status. Nothing fancy, but every query is hand-written.
+Built from scratch. CPU, RAM, disk as gauges per node. Network traffic over time. Node up/down status. 
 
 **Imported — Node Exporter Full (ID 1860)**
 The standard community dashboard for node_exporter. Way more detailed than my custom one — shows everything from CPU steal time to disk I/O latency. Good for debugging specific issues.
@@ -123,4 +123,4 @@ The standard community dashboard for node_exporter. Way more detailed than my cu
 **Imported — Blackbox Exporter (ID 13659)**
 Service availability and response times in a clean layout.
 
-I keep both the custom and imported dashboards. The custom one proves I can write PromQL. The imported ones are what I actually look at day-to-day because they're more complete.
+I keep both the custom and imported dashboards. 
